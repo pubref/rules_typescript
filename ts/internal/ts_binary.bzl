@@ -1,11 +1,12 @@
 load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_binary", "closure_js_library")
 load("//ts:internal/ts_library.bzl", "ts_library")
 
-def _get_js_filename(f):
-    parts = f.rsplit('.', 1);
-    return parts[0] + '.js';
-
-def ts_binary(name, srcs = [], deps = []):
+def ts_binary(name,
+              srcs = [],
+              deps = [],
+              debug = False,
+              compilation_level = "ADVANCED",
+):
 
     ts_library(
         name = 'ts' + name,
@@ -20,14 +21,12 @@ def ts_binary(name, srcs = [], deps = []):
 
     closure_js_binary(
         name = name,
-        compilation_level = "SIMPLE",
-        debug = True,
+        compilation_level = compilation_level,
+        debug = False,
         defs = [
-            "--transform_amd_modules",
             "--process_common_js_modules",
         ],
         #entry_points = entry_points,
-        #entry_points = ["goog:bzl.boot"],
         output_wrapper = "var " + name + " = function(){%output%};",
         deps = ['cl' + name],
     )

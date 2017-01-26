@@ -39,18 +39,19 @@ def ts_library_impl(ctx):
         lib = dep.ts_library
         srcs += lib.srcs
 
-    srcs_js = [ctx.new_file("%s.js" % src.basename) for src in srcs]
+    srcs_js = [ctx.new_file("%s.js" % src.basename.rsplit('.', 1)[0]) for src in srcs]
 
     args = [
         node.path,
         compiler.path,
+        "--outdir", "%s/%s" % (ctx.bin_dir.path, ctx.label.package)
     ]
 
     # if ctx.attr.sick:
     #     args += ["--externs=" + extfile.path]
     #     args += ["--"]
 
-    args += ["--module", "amd"]
+    #args += ["--module", "amd"]
 
     if (srcs):
         for file in srcs:
@@ -58,9 +59,11 @@ def ts_library_impl(ctx):
     else:
         args += ["-p", tsconfig.dirname]
 
+    print("args: %r" % args)
+
     ctx.action(
         mnemonic = "TypesciptCompile",
-        inputs = [node, compiler, tsconfig] + srcs,
+        inputs = [node, compiler, tsc, tsconfig] + srcs,
         outputs = srcs_js,
         command = " ".join(args),
         env = {
@@ -94,7 +97,7 @@ ts_library = rule(
             default = Label("//ts:tsconfig.json"),
         ),
         "sick": attr.bool(
-            default = True,
+            default = False,
         ),
         "_node": attr.label(
             default = Label("@org_pubref_rules_node_toolchain//:node_tool"),

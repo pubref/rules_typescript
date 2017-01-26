@@ -1,179 +1,127 @@
-# `rules_maven` [![Build Status](https://travis-ci.org/pubref/rules_maven.svg?branch=master)](https://travis-ci.org/pubref/rules_maven)
+# `rules_typescript` [![Build Status](https://travis-ci.org/pubref/rules_typescript.svg?branch=master)](https://travis-ci.org/pubref/rules_typescript)
 
 <table><tr>
 <td><img src="https://avatars1.githubusercontent.com/u/11684617?v=3&s=200" height="120"/></td>
-<td><img src="http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png" height="120"/></td>
+<td><img src="https://raw.githubusercontent.com/remojansen/logo.ts/master/ts.png" height="120"/></td>
+<td><img src="https://3.bp.blogspot.com/-PpegKkYIbEY/V8YbCiGqcmI/AAAAAAAACJw/HvSXgYS_ORc5T_LDHmk4PDRwXQMYd-RNACLcB/s1600/image00.png" height="120"/></td>
 </tr><tr>
-<td>Rules</td>
-<td>Maven</td>
+<td>Bazel</td>
+<td>Typescript</td>
+<td>rules_closure</td>
 </tr></table>
 
-[Bazel](https://bazel.build) rules for working with transitive maven dependencies.
+Strongly typed typescript goes in, optimized & minified javascript
+comes out; seasoned with copious amounts of amesomesauce.
+
 
 ## Rules
 
 |               Name   |  Description |
 | -------------------: | :----------- |
-| [maven_repositories](#maven_repositories) |  Load dependencies for this repo. |
-| [maven_repository](#maven_repository) | Declare an external workspace that defines transitive dependencies for a set of maven artifacts. |
+| [typescript_repositories](#typescript_repositories) |  Load dependencies for this repository. |
+| [ts_library](#ts_library) | Invoke the typescript compiler on a set of `*.ts` files to generate a set of `*.js` files. |
+| [ts_binary](#ts_binary) | Optimize and minify a set of `*.js` files with closure compiler via rules_closure. |
 
-**Status**: experimental, but actively in use for other internal projects.
+**Status**: PROOF OF CONCEPT.  It probably only works under very
+  narrow conditions at the moment.
 
 ## Usage
 
-### 1. Add rules_maven to your WORKSPACE
+Prerequisite: java8 and bazel should installed on your system.
+
+### WORKSPACE Configuration
+
+#### 1. Add rules_closure to your WORKSPACE
 
 ```python
 git_repository(
-  name = "org_pubref_rules_maven",
-  remote = "https://github.com/pubref/rules_maven",
+  name = "io_bazel_rules_closure",
+  remote = "https://github.com/bazelbuild/rules_closure",
+  tag = "0.4.0",
+)
+```
+
+This brings in rules_closure, which is actually a different front-end
+to the closure compiler with additional type checking and goodies.
+
+#### 2. Add rules_node to your WORKSPACE
+
+```python
+git_repository(
+  name = "org_pubref_rules_node",
+  remote = "https://github.com/pubref/rules_node",
+  commit = HEAD, # replace with latest version
+)
+```
+
+This brings in an independent copy of node, typescript (2.1.4), and
+tsickle (0.21.0, experimental).
+
+#### 3. Add rules_typescript to your WORKSPACE
+
+```python
+git_repository(
+  name = "org_pubref_rules_typescript",
+  remote = "https://github.com/pubref/rules_typescript",
   commit = HEAD, # replace with latest version
 )
 
-load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories")
-maven_repositories()
+load("@org_pubref_rules_typescript//ts:rules.bzl", "ts_repositories")
+ts_repositories()
 ```
 
-### 2a. Define an initial maven_repository rule naming the root artifact(s)
+### BUILD Configuration
+
+#### ls_library
+
+Compile typescript files with `tsc`, the typescript compiler.
 
 ```python
-load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repository")
+load("@org_pubref_rules_typescript//ts:rules.bzl", "ts_library")
 
-maven_repository(
-  name = "guice",
-  deps = [
-    'com.google.inject:guice:4.1.0',
+ts_library(
+  name = "lib",
+  srcs = [
+    "a.ts",
+    "b.ts",
+    "c.ts",
   ],
+  # Optional tsconfig file.  If provided, you don't need to specify 'files'.
+  ts_config = "tsconfig.json",
 )
 ```
 
-Given this initial repository rule defintion, `rules_maven` will:
+#### ls_binary
 
-1. write a `build.gradle` file,
-
-1. install `gradle` as it's own internal dependency (first time only;
-   does not interfere with any other gradle you might have installed).
-
-1. call `gradle dependencies` and parse the output,
-
-1. fetch the expected sha1 values for named artifacts,
-
-1. write a `@guice//:rules.bzl` file having the requisite `maven_jar`
-   rules (organized by configuration),
-
-1. write a `@guice//:BUILD` file with the requisite `java_library`
-   that bundle/export dependencies (one per configuration).
-
-1. print out a formatted `maven_repository` *"closed-form"* rule with
-   all the transitive dependencies explicitly named.
-
-### 2b. Copy and paste the closed-form back into your WORKSPACE.
-
-`rules_maven` will regurgitate a so-called *closed-form*
-`maven_repository` rule enumerating the transitive dependencies and
-their sha1 values in the `transitive_deps` attribute.  Assuming you
-trust the data, copy and paste this back into your `WORKSPACE`.
+Compile generated javascript from ts_library dependencies into single
+minified output via the `closure_js_binary` rule.
 
 ```python
-maven_repository(
-  name = 'guice',
-  deps = [
-    'com.google.inject:guice:4.1.0',
-  ],
-  transitive_deps = [
-    '0235ba8b489512805ac13a8f9ea77a1ca5ebe3e8:aopalliance:aopalliance:1.0',
-    '6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9:com.google.guava:guava:19.0',
-    'eeb69005da379a10071aa4948c48d89250febb07:com.google.inject:guice:4.1.0',
-    '6975da39a7040257bd51d21a231b76c915872d38:javax.inject:javax.inject:1',
-  ],
-)
-```
+load("@org_pubref_rules_typescript//ts:rules.bzl", "ts_binary")
 
-Once the `transitive_deps` is stable (all transitive deps and their correct
-sha1 values are listed), `rules_maven` will be silent.
-
-### 3. Load the `@guice//:rules.bzl` file in your WORKSPACE and invoke the desired macro configuration.
-
-The `rules.bzl` file (a generated file) contains macro definitions
-that ultimately define `native.maven_jar` rules.  A separate macro is
-defined for each *gradle configuration*.  The default configurations
-are: `compile`, `runtime`, `compileOnly`, `compileClasspath`,
-`testCompile`, and `testRuntime`.  (these can be customized via the
-`configurations` attribute).
-
-The name of the macros are the gradle configuration name, prefixed
-with the rule name.  In this case there are the following macros (and
-several others):
-
-* `guice_compile`: Provide compile-time dependencies.
-* `guice_runtime`: Provide runtime-time dependencies.
-* ...
-
-
-```python
-load("@guice//:rules.bzl", "guice_compile")
-guice_compile()
-```
-
-> In this case, both `_compile` and `_runtime` macros provide the same dependencies.
-
-> You can inspect the contents of the generated file via:
-
-```sh
-$ cat $(bazel info output_base)/external/guice/rules.bzl
-```
-
-### 4. Depend on the java_library rule for the desired configuration.
-
-```python
-java_binary(
+ts_binary(
   name = "app",
-  main_class = "example.App",
-  deps = ["@guice//:compile"],
-)
-```
-\java_library(
-  name = 'compile',
-  exports = [
-    '@aopalliance_aopalliance//jar',
-    '@com_google_guava_guava//jar',
-    '@com_google_inject_guice//jar',
-    '@javax_inject_javax_inject//jar',
-  ],
-  visibility = ['//visibility:public'],
-)
-### Final WORKSPACE
-
-To further illustrate steps 1-3 are all in the same file.
-
-```python
-git_repository(
-  name = "org_pubref_rules_maven",
-  remote = "https://github.com/pubref/rules_maven",
-  commit = HEAD, # replace with latest version
-)
-load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
-maven_repositories()
-
-
-maven_repository(
-  name = 'guice',
   deps = [
-    'com.google.inject:guice:4.1.0',
-  ],
-  transitive_deps = [
-    '0235ba8b489512805ac13a8f9ea77a1ca5ebe3e8:aopalliance:aopalliance:1.0',
-    '6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9:com.google.guava:guava:19.0',
-    'eeb69005da379a10071aa4948c48d89250febb07:com.google.inject:guice:4.1.0',
-    '6975da39a7040257bd51d21a231b76c915872d38:javax.inject:javax.inject:1',
+    ":lib",
   ],
 )
-load("@guice//:rules.bzl", "guice_compile")
-guice_compile()
 ```
 
-# Credits
+The generated file will take the form:
 
-The anteater image is a reference to the O'Reilly book cover.  This image is
-actually "Peter", the University of California Irvine
-mascot. [**ZOT!**](http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png)
+```javascript
+var {TS_BINARY_RULE_NAME} = function(){%output%};
+```
+
+Therefore, you can invoke the entry point for the minified bundle:
+
+```html
+<html>
+ <head>
+  <script src="{TS_BINARY_RULE_NAME}.js"></script>
+
+ </head>
+ ...
+ <script>{TS_BINARY_RULE_NAME}();</script>
+</html>
+```

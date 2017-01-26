@@ -1,7 +1,7 @@
 load("//ts:rules.bzl", "ts_library", "ts_binary")
 
 ts_library(
-    name = "hello",
+    name = "hlib",
     srcs = [
         "hello.ts",
         "app.ts",
@@ -9,11 +9,8 @@ ts_library(
 )
 
 ts_binary(
-    name = "app",
-    srcs = [
-        "app.ts",
-    ],
+    name = "app_bin",
     deps = [
-        ":hello"
+        ":hlib"
     ]
 )
