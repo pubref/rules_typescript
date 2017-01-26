@@ -26,21 +26,20 @@ def ts_library_impl(ctx):
     tsc = ctx.file._tsc
     tsickle = ctx.file._tsickle
     compiler = tsickle if ctx.attr.sick else tsc
-    srcs = ctx.files.srcs
     tsconfig = ctx.file.tsconfig
-    outfile = ctx.outputs.js
-    #extfile = ctx.outputs.ext
 
-    transitive_srcs = []
-    files = []
+    srcs = ctx.files.srcs
+    data = []
 
     for d in ctx.attr.data:
         for file in d.files:
-            files.append(file)
+            data.append(file)
 
     for dep in ctx.attr.deps:
         lib = dep.ts_library
-        transitive_srcs += lib.transitive_srcs
+        srcs += lib.srcs
+
+    srcs_js = [ctx.new_file("%s.js" % src.basename) for src in srcs]
 
     args = [
         node.path,
@@ -51,7 +50,6 @@ def ts_library_impl(ctx):
     #     args += ["--externs=" + extfile.path]
     #     args += ["--"]
 
-    args += ["--outFile", outfile.path]
     args += ["--module", "amd"]
 
     if (srcs):
@@ -62,9 +60,8 @@ def ts_library_impl(ctx):
 
     ctx.action(
         mnemonic = "TypesciptCompile",
-        inputs = [node, compiler, tsc, tsconfig] + srcs,
-        #outputs = [outfile, extfile],
-        outputs = [outfile],
+        inputs = [node, compiler, tsconfig] + srcs,
+        outputs = srcs_js,
         command = " ".join(args),
         env = {
             "NODE_PATH": tsc.dirname + "/..",
@@ -72,10 +69,9 @@ def ts_library_impl(ctx):
     )
 
     return struct(
-        files = set(srcs + [outfile]),
+        files = set(srcs_js),
         ts_library = struct(
             srcs = srcs,
-            transitive_srcs = srcs + transitive_srcs,
         ),
     )
 
@@ -98,7 +94,7 @@ ts_library = rule(
             default = Label("//ts:tsconfig.json"),
         ),
         "sick": attr.bool(
-            default = False,
+            default = True,
         ),
         "_node": attr.label(
             default = Label("@org_pubref_rules_node_toolchain//:node_tool"),
@@ -119,9 +115,5 @@ ts_library = rule(
             allow_files = True,
             cfg = "host",
         ),
-    },
-    outputs = {
-        "js": "%{name}.js",
-        #"ext": "%{name}.ext.js",
     },
 )
