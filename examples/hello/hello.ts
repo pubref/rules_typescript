@@ -1,8 +1,12 @@
-//module SomeModule {
-  export class RaceTrack {
+export class App {
     constructor(private host: Element) {
-      host.appendChild(document.createElement("canvas"));
-      console.log('Hello');
+        host.appendChild(document.createElement("div"));
+        div.innerText = 'Hello';
+        console.log('App initialized!');
     }
-  }
-//}
+
+    toString(): string {
+        return 'HelloApp';
+    }
+
+}

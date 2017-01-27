@@ -1,4 +1,4 @@
-load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_binary", "closure_js_library")
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_binary", "closure_js_library", "closure_js_test")
 load("//ts:internal/ts_library.bzl", "ts_library")
 
 def ts_binary(name,

@@ -11,7 +11,7 @@
 </tr></table>
 
 Strongly typed typescript goes in, optimized & minified javascript
-comes out; seasoned with copious amounts of amesomesauce.
+comes out :ideograph_advantage:.
 
 
 ## Rules

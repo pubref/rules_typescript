@@ -8,3 +8,10 @@ def ts_repositories():
             "tsickle": "0.21.0",
         },
     )
+    npm_repository(
+        name = "testing",
+        deps = {
+            "@types/mocha": "2.2.3.8",
+            "@types/": "2.1.0",
+        },
+    )
